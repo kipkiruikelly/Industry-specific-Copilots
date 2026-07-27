@@ -1,20 +1,14 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.router import api_router
 from src.config import settings
-from src.security.tenant import MultiTenantMiddleware
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version=settings.VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    docs_url=f"{settings.API_V1_STR}/docs",
 )
 
-# Multi-Tenant Isolation Middleware
-app.add_middleware(MultiTenantMiddleware)
-
-# CORS Security Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,6 +20,13 @@ app.add_middleware(
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
+@app.get("/")
+def root():
+    return {"message": f"Welcome to {settings.PROJECT_NAME} API Engine"}
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=True)
+
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("src.main:app", host="0.0.0.0", port=port, reload=False)
