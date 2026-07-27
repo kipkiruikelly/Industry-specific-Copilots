@@ -1,37 +1,47 @@
 #!/bin/bash
-# MediCopilot Direct Docker Build & Deploy Script for GCP Cloud Shell
+# MediCopilot GCP Deployment Script using Google Artifact Registry (pkg.dev)
 
 set -e
 
 PROJECT_ID="medicopilot-503723"
 REGION="us-central1"
+REPO_NAME="medicopilot-repo"
 
 echo "=== 1. Setting GCP Project ==="
 gcloud config set project $PROJECT_ID
 
-echo "=== 2. Configuring Local Docker Authentication ==="
-gcloud auth configure-docker --quiet
+echo "=== 2. Creating Artifact Registry Repository ==="
+gcloud artifacts repositories create $REPO_NAME \
+  --repository-format=docker \
+  --location=$REGION \
+  --description="MediCopilot Enterprise Docker Repository" || true
 
-echo "=== 3. Building and Pushing FastAPI Backend Image ==="
-docker build -t gcr.io/$PROJECT_ID/medicopilot-backend:latest .
-docker push gcr.io/$PROJECT_ID/medicopilot-backend:latest
+echo "=== 3. Authenticating Docker to Artifact Registry ==="
+gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
 
-echo "=== 4. Deploying Backend to Cloud Run ==="
+BACKEND_IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/medicopilot-backend:latest"
+FRONTEND_IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/medicopilot-frontend:latest"
+
+echo "=== 4. Pushing FastAPI Backend Image ==="
+docker tag gcr.io/$PROJECT_ID/medicopilot-backend:latest $BACKEND_IMAGE
+docker push $BACKEND_IMAGE
+
+echo "=== 5. Deploying Backend to Cloud Run ==="
 gcloud run deploy medicopilot-backend \
-  --image gcr.io/$PROJECT_ID/medicopilot-backend:latest \
+  --image $BACKEND_IMAGE \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
   --port 8000
 
-echo "=== 5. Building and Pushing Next.js Frontend Image ==="
+echo "=== 6. Building and Pushing Next.js Frontend Image ==="
 cd frontend
-docker build -t gcr.io/$PROJECT_ID/medicopilot-frontend:latest .
-docker push gcr.io/$PROJECT_ID/medicopilot-frontend:latest
+docker build -t $FRONTEND_IMAGE .
+docker push $FRONTEND_IMAGE
 
-echo "=== 6. Deploying Frontend to Cloud Run ==="
+echo "=== 7. Deploying Frontend to Cloud Run ==="
 gcloud run deploy medicopilot-frontend \
-  --image gcr.io/$PROJECT_ID/medicopilot-frontend:latest \
+  --image $FRONTEND_IMAGE \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
