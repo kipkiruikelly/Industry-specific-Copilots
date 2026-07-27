@@ -1,5 +1,5 @@
 #!/bin/bash
-# MediCopilot Cloud Shell One-Click Deployment Script for Project: medicopilot-503723
+# MediCopilot Direct Docker Build & Deploy Script for GCP Cloud Shell
 
 set -e
 
@@ -9,23 +9,14 @@ REGION="us-central1"
 echo "=== 1. Setting GCP Project ==="
 gcloud config set project $PROJECT_ID
 
-echo "=== 2. Enabling Required GCP APIs ==="
-gcloud services enable run.googleapis.com \
-                       containerregistry.googleapis.com \
-                       artifactregistry.googleapis.com \
-                       cloudbuild.googleapis.com
+echo "=== 2. Configuring Local Docker Authentication ==="
+gcloud auth configure-docker --quiet
 
-echo "=== 3. Cloning MediCopilot Repository ==="
-if [ -d "Industry-specific-Copilots" ]; then
-  cd Industry-specific-Copilots
-  git pull
-else
-  git clone https://github.com/kipkiruikelly/Industry-specific-Copilots.git
-  cd Industry-specific-Copilots
-fi
+echo "=== 3. Building and Pushing FastAPI Backend Image ==="
+docker build -t gcr.io/$PROJECT_ID/medicopilot-backend:latest .
+docker push gcr.io/$PROJECT_ID/medicopilot-backend:latest
 
-echo "=== 4. Building and Deploying FastAPI Backend ==="
-gcloud builds submit --tag gcr.io/$PROJECT_ID/medicopilot-backend:latest .
+echo "=== 4. Deploying Backend to Cloud Run ==="
 gcloud run deploy medicopilot-backend \
   --image gcr.io/$PROJECT_ID/medicopilot-backend:latest \
   --platform managed \
@@ -33,9 +24,12 @@ gcloud run deploy medicopilot-backend \
   --allow-unauthenticated \
   --port 8000
 
-echo "=== 5. Building and Deploying Next.js Frontend ==="
+echo "=== 5. Building and Pushing Next.js Frontend Image ==="
 cd frontend
-gcloud builds submit --tag gcr.io/$PROJECT_ID/medicopilot-frontend:latest .
+docker build -t gcr.io/$PROJECT_ID/medicopilot-frontend:latest .
+docker push gcr.io/$PROJECT_ID/medicopilot-frontend:latest
+
+echo "=== 6. Deploying Frontend to Cloud Run ==="
 gcloud run deploy medicopilot-frontend \
   --image gcr.io/$PROJECT_ID/medicopilot-frontend:latest \
   --platform managed \
