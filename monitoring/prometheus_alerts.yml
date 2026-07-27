@@ -1,0 +1,20 @@
+groups:
+  - name: medicopilot_alerts
+    rules:
+      - alert: HighApiLatency
+        expr: medicopilot_http_request_duration_seconds_bucket{le="2.0"} < 0.95
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API Latency High"
+          description: "Over 5% of requests exceed 2 second latency."
+
+      - alert: PromptInjectionSurge
+        expr: rate(medicopilot_clinical_queries_total{threat_category="prompt_injection"}[5m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prompt Injection Surge Detected"
+          description: "High rate of prompt injection attacks detected."
