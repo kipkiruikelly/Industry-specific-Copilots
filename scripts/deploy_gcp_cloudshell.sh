@@ -17,7 +17,8 @@ gcloud run deploy $SERVICE_BACKEND \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
-  --port 8000
+  --port 8000 \
+  --set-env-vars VECTOR_PROVIDER=in_memory,ENVIRONMENT=production,PORT=8000
 
 echo "=== 3. Deploying Next.js Frontend via Cloud Run Source Deploy ==="
 cd frontend
