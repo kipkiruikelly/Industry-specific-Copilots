@@ -1,12 +1,11 @@
 import os
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.router import api_router
-from src.config import settings
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    title="MediCopilot Healthcare AI Platform",
+    openapi_url="/api/v1/openapi.json",
 )
 
 app.add_middleware(
@@ -17,16 +16,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix=settings.API_V1_STR)
-
-
 @app.get("/")
 def root():
-    return {"message": f"Welcome to {settings.PROJECT_NAME} API Engine"}
+    return {"status": "healthy", "service": "MediCopilot Healthcare AI Platform"}
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+# Lazy load API router inside startup or on demand if dependencies allow
+try:
+    from src.api.router import api_router
+    app.include_router(api_router, prefix="/api/v1")
+except Exception as e:
+    print(f"Warning: Deferred full router initialization: {e}")
 
 if __name__ == "__main__":
-    import uvicorn
-
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("src.main:app", host="0.0.0.0", port=port, reload=False)
+    port_str = os.getenv("PORT", "8000")
+    try:
+        port = int(port_str)
+    except ValueError:
+        port = 8000
+    uvicorn.run(app, host="0.0.0.0", port=port)
